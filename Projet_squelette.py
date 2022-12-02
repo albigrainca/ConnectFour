@@ -1,3 +1,4 @@
+import math
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
@@ -5,22 +6,81 @@ import random as rnd
 from threading import Thread
 from queue import Queue
 
-
 disk_color = ['white', 'red', 'orange']
 disks = list()
 
 player_type = ['human']
 for i in range(42):
-    player_type.append('AI: alpha-beta level '+str(i+1))
+    player_type.append('AI: alpha-beta level ' + str(i + 1))
+
 
 def alpha_beta_decision(board, turn, ai_level, queue, max_player):
-    # random move (to modify)
-    queue.put(board.get_possible_moves()[rnd.randint(0, len(board.get_possible_moves()) - 1)])
+    possible_moves = board.get_possible_moves()
+    best_move = possible_moves[0]
+    best_value = -math.inf
+    nodes_explored = 0
+    alpha = -math.inf
+    beta = math.inf
+    print("AI PLAYS : ALPHA-BETA")
+    print("TURN : {}".format(turn))
+    for move in possible_moves:
+        update_board = board.copy()
+        nodes_explored += 1
+        update_board.grid[move[0]][move[1]] = turn % 2 + 1
+        value, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level)
+        if value > best_value:
+            best_value = value
+            best_move = move
+        alpha = max(alpha, best_value)
+    print("NODES EXPLORED : {}".format(nodes_explored))
+    print("BEST VALUE : {}".format(best_value))
+    print("BEST MOVE : {}".format(best_move))
+    print()
+    queue.put(best_move)
+    # queue.put(board.get_possible_moves()[rnd.randint(0, len(board.get_possible_moves()) - 1)])
+
+
+def max_value(board, turn, alpha, beta, nodes_explored, ai_level):
+    if board.check_victory(update_display=False):
+        return -1, nodes_explored
+    elif turn > ai_level:
+        return 0, nodes_explored
+    possible_moves = board.get_possible_moves()
+    value = -math.inf
+    for move in possible_moves:
+        nodes_explored += 1
+        update_board = board.copy()
+        update_board.grid[move[0]][move[1]] = turn % 2 + 1
+        min_val, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level)
+        value = max(value, min_val)
+        if value >= beta:
+            return value, nodes_explored
+        alpha = max(alpha, value)
+    return value, nodes_explored
+
+
+def min_value(board, turn, alpha, beta, nodes_explored, ai_level):
+    possible_moves = board.get_possible_moves()
+    value = -math.inf
+    if board.check_victory(update_display=False):
+        return 1, nodes_explored
+    elif turn > ai_level:
+        return 0, nodes_explored
+    for move in possible_moves:
+        nodes_explored += 1
+        update_board = board.copy()
+        update_board.grid[move[0]][move[1]] = turn % 2 + 1
+        max_val, nodes_explored = max_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level)
+        value = min(value, max_val)
+        if value <= alpha:
+            return value, nodes_explored
+        beta = min(beta, value)
+    return value, nodes_explored
+
 
 class Board:
     grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
-
 
     def eval(self, player):
         return 0
@@ -62,7 +122,8 @@ class Board:
         # Horizontal alignment check
         for line in range(6):
             for horizontal_shift in range(4):
-                if self.grid[horizontal_shift][line] == self.grid[horizontal_shift + 1][line] == self.grid[horizontal_shift + 2][line] == self.grid[horizontal_shift + 3][line] != 0:
+                if self.grid[horizontal_shift][line] == self.grid[horizontal_shift + 1][line] == \
+                        self.grid[horizontal_shift + 2][line] == self.grid[horizontal_shift + 3][line] != 0:
                     return True
         # Vertical alignment check
         for column in range(7):
@@ -73,11 +134,14 @@ class Board:
         # Diagonal alignment check
         for horizontal_shift in range(4):
             for vertical_shift in range(3):
-                if self.grid[horizontal_shift][vertical_shift] == self.grid[horizontal_shift + 1][vertical_shift + 1] ==\
-                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
+                if self.grid[horizontal_shift][vertical_shift] == self.grid[horizontal_shift + 1][vertical_shift + 1] == \
+                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][
+                    vertical_shift + 3] != 0:
                     return True
-                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][4 - vertical_shift] ==\
-                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][2 - vertical_shift] != 0:
+                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][
+                    4 - vertical_shift] == \
+                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][
+                    2 - vertical_shift] != 0:
                     return True
         return False
 
@@ -115,7 +179,8 @@ class Connect4:
             self.move(column)
 
     def ai_turn(self, ai_level):
-        Thread(target=alpha_beta_decision, args=(self.board, self.turn, ai_level, self.ai_move, self.current_player(),)).start()
+        Thread(target=alpha_beta_decision,
+               args=(self.board, self.turn, ai_level, self.ai_move, self.current_player(),)).start()
         self.ai_wait_for_move()
 
     def ai_wait_for_move(self):
@@ -161,9 +226,9 @@ canvas1 = tk.Canvas(window, bg="blue", width=width, height=height)
 for i in range(7):
     disks.append(list())
     for j in range(5, -1, -1):
-        disks[i].append(canvas1.create_oval(row_margin + i * row_width, row_margin + j * row_height, (i + 1) * row_width - row_margin,
-                            (j + 1) * row_height - row_margin, fill='white'))
-
+        disks[i].append(canvas1.create_oval(row_margin + i * row_width, row_margin + j * row_height,
+                                            (i + 1) * row_width - row_margin,
+                                            (j + 1) * row_height - row_margin, fill='white'))
 
 canvas1.grid(row=0, column=0, columnspan=2)
 

@@ -31,7 +31,6 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
             best_move = move
         alpha = max(alpha, best_value)
     queue.put(best_move)
-    # queue.put(board.get_possible_moves()[rnd.randint(0, len(board.get_possible_moves()) - 1)])
 
 
 def max_value(board, turn, alpha, beta, nodes_explored, ai_level):

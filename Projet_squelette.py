@@ -21,8 +21,6 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     nodes_explored = 0
     alpha = -math.inf
     beta = math.inf
-    print("AI PLAYS : ALPHA-BETA")
-    print("TURN : {}".format(turn))
     for move in possible_moves:
         update_board = board.copy()
         nodes_explored += 1
@@ -32,10 +30,6 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
             best_value = value
             best_move = move
         alpha = max(alpha, best_value)
-    print("NODES EXPLORED : {}".format(nodes_explored))
-    print("BEST VALUE : {}".format(best_value))
-    print("BEST MOVE : {}".format(best_move))
-    print()
     queue.put(best_move)
     # queue.put(board.get_possible_moves()[rnd.randint(0, len(board.get_possible_moves()) - 1)])
 

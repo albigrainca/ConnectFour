@@ -38,27 +38,6 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     print()
     queue.put(best_move)
 
-
-
-def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
-    if board.check_victory():
-        return 1, nodes_explored
-    elif depth_explored > ai_level:
-        return 0, nodes_explored
-    possible_moves = board.get_possible_moves()
-    value = -math.inf
-    for move in possible_moves:
-        nodes_explored += 1
-        update_board = board.copy()
-        update_board.add_disk(move, turn % 2 + 1, update_display=False)
-        min_val, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player, depth_explored + 1)
-        value = max(value, min_val)
-        if value >= beta:
-            return value, nodes_explored
-        alpha = max(alpha, value)
-    return value, nodes_explored
-
-
 def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return 1, nodes_explored
@@ -70,13 +49,32 @@ def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
         nodes_explored += 1
         update_board = board.copy()
         update_board.add_disk(move, turn % 2 + 1, update_display=False)
-        max_val, nodes_explored = max_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player, depth_explored + 1)
+        max_val, nodes_explored = max_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
+                                            depth_explored + 1)
         value = min(value, max_val)
         if value <= alpha:
             return value, nodes_explored
         beta = min(beta, value)
     return value, nodes_explored
 
+def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
+    if board.check_victory():
+        return -1, nodes_explored
+    elif depth_explored > ai_level:
+        return 0, nodes_explored
+    possible_moves = board.get_possible_moves()
+    value = -math.inf
+    for move in possible_moves:
+        nodes_explored += 1
+        update_board = board.copy()
+        update_board.add_disk(move, turn % 2 + 1, update_display=False)
+        min_val, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
+                                            depth_explored + 1)
+        value = max(value, min_val)
+        if value >= beta:
+            return value, nodes_explored
+        alpha = max(alpha, value)
+    return value, nodes_explored
 
 class Board:
     grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
@@ -135,13 +133,10 @@ class Board:
         for horizontal_shift in range(4):
             for vertical_shift in range(3):
                 if self.grid[horizontal_shift][vertical_shift] == self.grid[horizontal_shift + 1][vertical_shift + 1] == \
-                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][
-                    vertical_shift + 3] != 0:
+                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
                     return True
-                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][
-                    4 - vertical_shift] == \
-                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][
-                    2 - vertical_shift] != 0:
+                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][4 - vertical_shift] == \
+                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][2 - vertical_shift] != 0:
                     return True
         return False
 

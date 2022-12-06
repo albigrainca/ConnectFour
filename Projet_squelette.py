@@ -80,8 +80,65 @@ class Board:
     grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
 
+    def is_thread(self, row, column, player):
+        board_copy = self.copy();
+        board_copy.grid[column][row] = player;
+        if board_copy.check_victory():
+            return True;
+        else:
+            return False;
+
     def eval(self, player):
-        return 0
+        score = 0;
+        useless = False;
+        skip_next_player = False;
+        skip_player = False;
+        dispo_counter = 1;
+        for row in range(6):
+            skip_player = skip_next_player;
+            skip_next_player = False;
+            skip_opponent = False;
+            skip_next_opponent = False;
+            if not useless:
+                if (self.grid[column][row] == 0):
+                    if (not skip_player):
+                        if (self.is_thread(row, column, player)):
+                            if (row % 2 == player):
+                                score += (6 - dispo_counter) * 100;
+                            else:
+                                score += (6 - dispo_counter) * 50;
+                            if (row < 5):
+                                skip_next_player = True;
+                                if (self.is_thread(row + 1, column, player)):
+                                    score += 1000;
+                                    useless = True;
+                    if (not skip_opponent):
+                        if (self.is_thread(row, column, ((player + 1) % 2))):
+                            if (row % 2 == (player + 1) % 2):
+                                score -= (6 - dispo_counter) * 100;
+                            else:
+                                score -= (6 - dispo_counter) * 50;
+                            if (row < 5):
+                                skip_next_opponent = True;
+                                if (self.is_thread(row + 1, column, player)):
+                                    score -= 1000;
+                                    useless = True;
+                    dispo_counter += 1;
+                elif self.grid[colmun][row] == player:
+                    if (column == 3):
+                        score += 3
+                    elif (column == 2 or column == 4):
+                        score += 2;
+                    elif (column == 1 or column == 5):
+                        score += 1;
+                else:
+                    if (column == 4):
+                        score -= 3;
+                    elif (column == 3 or column == 5):
+                        score -= 2;
+                    elif (column == 2 or column == 6):
+                        score -= 1;
+        return score;
 
     def copy(self):
         new_board = Board()

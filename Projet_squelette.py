@@ -26,7 +26,7 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, turn % 2 + 1, update_display=False)
+        update_board.add_disk(move, max_player, update_display=False)
         value, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player, 0)
         if value > best_value:
             best_value = value
@@ -41,14 +41,14 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
 def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return 1, nodes_explored
-    elif depth_explored > ai_level:
+    elif depth_explored >= ai_level:
         return 0, nodes_explored
     possible_moves = board.get_possible_moves()
     value = math.inf
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, turn % 2 + 1, update_display=False)
+        update_board.add_disk(move, max_player % 2 + 1, update_display=False)
         max_val, nodes_explored = max_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
                                             depth_explored + 1)
         value = min(value, max_val)
@@ -60,14 +60,14 @@ def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
 def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return -1, nodes_explored
-    elif depth_explored > ai_level:
+    elif depth_explored >= ai_level:
         return 0, nodes_explored
     possible_moves = board.get_possible_moves()
     value = -math.inf
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, turn % 2 + 1, update_display=False)
+        update_board.add_disk(move, max_player, update_display=False)
         min_val, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
                                             depth_explored + 1)
         value = max(value, min_val)

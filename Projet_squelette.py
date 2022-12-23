@@ -2,6 +2,7 @@ import math
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
+import random as rnd
 from threading import Thread
 from queue import Queue
 
@@ -12,6 +13,8 @@ player_type = ['human']
 for i in range(42):
     player_type.append('AI: alpha-beta level ' + str(i + 1))
 
+def player_playing(turn):
+    return 2 - (turn % 2)
 
 def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     possible_moves = board.get_possible_moves()
@@ -25,7 +28,7 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, max_player, update_display=False)
+        update_board.add_disk(move, player_playing(turn), update_display=False)
         value, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player, 0)
         if value > best_value:
             best_value = value
@@ -34,9 +37,10 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     print("NODES EXPLORED : {}".format(nodes_explored))
     print("BEST VALUE : {}".format(best_value))
     print("BEST MOVE : {}".format(best_move))
+    print("score =" + str(board.eval(player_playing(turn))))
+    print("player : " + str(player_playing(turn)))
     print()
     queue.put(best_move)
-
 
 def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
@@ -44,13 +48,11 @@ def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
     elif depth_explored >= ai_level:
         return 0, nodes_explored
     possible_moves = board.get_possible_moves()
-    if ai_level == 0:
-        return board.eval(max_player)
     value = math.inf
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, max_player % 2 + 1, update_display=False)
+        update_board.add_disk(move, player_playing(turn), update_display=False)
         max_val, nodes_explored = max_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
                                             depth_explored + 1)
         value = min(value, max_val)
@@ -59,20 +61,17 @@ def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
         beta = min(beta, value)
     return value, nodes_explored
 
-
 def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return -1, nodes_explored
     elif depth_explored >= ai_level:
         return 0, nodes_explored
     possible_moves = board.get_possible_moves()
-    if ai_level == 0:
-        return board.eval(max_player)
     value = -math.inf
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, max_player, update_display=False)
+        update_board.add_disk(move, player_playing(turn), update_display=False)
         min_val, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
                                             depth_explored + 1)
         value = max(value, min_val)
@@ -81,71 +80,57 @@ def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
         alpha = max(alpha, value)
     return value, nodes_explored
 
+def eval_sequence(seq, player):
+    # Count the number of disks of each player in the sequence
+    count = [np.sum(seq == i) for i in range(1, 3)]
+
+    # If the current player has 3 disks in a row, return a high score
+    if count[player - 1] == 3:
+        return 100
+    # If the other player has 3 disks in a row, return a low score
+    elif count[player % 2] == 3:
+        return -100
+    # If the current player has 2 disks in a row and an empty space, return a medium score
+    elif count[player - 1] == 2 and 0 in count:
+        return 10
+    # If the other player has 2 disks in a row and an empty space, return a medium negative score
+    elif count[player % 2] == 2 and 0 in count:
+        return -10
+    # Otherwise, return 0
+    else:
+        return 0
 
 class Board:
     grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
 
-    def is_thread(self, row, column, player):
-        board_copy = self.copy()
-        board_copy.grid[column][row] = player
-        if board_copy.check_victory():
-            return True
-        else:
-            return False
-
     def eval(self, player):
         score = 0
-        for column in range(7):
-            useless = False
-            skip_next_player = False
-            skip_player = False
-            skip_next_opponent = False
-            dispo_counter = 1
-            for row in range(6):
-                skip_player = skip_next_player
-                skip_next_player = False
-                skip_opponent = skip_next_opponent
-                skip_next_opponent = False
-                if not useless:
-                    if self.grid[column][row] == 0:
-                        if not skip_player:
-                            if self.is_thread(row, column, player):
-                                if row % 2 == player:
-                                    score += (6 - dispo_counter) * 100
-                                else:
-                                    score += (6 - dispo_counter) * 50
-                                if row < 5:
-                                    skip_next_player = True
-                                    if self.is_thread(row + 1, column, player):
-                                        score += 10000
-                                        useless = True
-                        if not skip_opponent:
-                            if self.is_thread(row, column, ((player + 1) % 2)):
-                                if row % 2 == (player + 1) % 2:
-                                    score -= (6 - dispo_counter) * 100
-                                else:
-                                    score -= (6 - dispo_counter) * 50
-                                if row < 5:
-                                    skip_next_opponent = True
-                                    if self.is_thread(row + 1, column, player):
-                                        score -= 1000
-                                        useless = True
-                        dispo_counter += 1
-                    elif self.grid[column][row] == player:
-                        if column == 3:
-                            score += 3
-                        elif column == 2 or column == 4:
-                            score += 2
-                        elif column == 1 or column == 5:
-                            score += 1
-                    else:
-                        if column == 4:
-                            score -= 3
-                        elif column == 3 or column == 5:
-                            score -= 2
-                        elif column == 2 or column == 6:
-                            score -= 1
+        # Iterate over the rows and columns of the grid
+        for i in range(self.grid.shape[0]):
+            for j in range(self.grid.shape[1]):
+                # Check for horizontal sequences of 3 or 4 disks
+                if j <= self.grid.shape[1] - 3:
+                    seq = self.grid[i, j:j + 3]
+                    score += eval_sequence(seq, player)
+                    if j <= self.grid.shape[1] - 4:
+                        seq = self.grid[i, j:j + 4]
+                        score += eval_sequence(seq, player)
+                # Check for vertical sequences of 3 or 4 disks
+                if i <= self.grid.shape[0] - 3:
+                    seq = self.grid[i:i + 3, j]
+                    score += eval_sequence(seq, player)
+                    if i <= self.grid.shape[0] - 4:
+                        seq = self.grid[i:i + 4, j]
+                        score += eval_sequence(seq, player)
+                # Check for diagonal sequences of 3 or 4 disks
+                if i <= self.grid.shape[0] - 3 and j <= self.grid.shape[1] - 3:
+                    seq = self.grid[i:i + 3, j:j + 3]
+                    score += eval_sequence(seq, player)
+                    if i <= self.grid.shape[0] - 4 and j <= self.grid.shape[1] - 4:
+                        seq = self.grid[i:i + 4, j:j + 4]
+                        score += eval_sequence(seq, player)
+        # Return the score
         return score
 
     def copy(self):
@@ -198,13 +183,10 @@ class Board:
         for horizontal_shift in range(4):
             for vertical_shift in range(3):
                 if self.grid[horizontal_shift][vertical_shift] == self.grid[horizontal_shift + 1][vertical_shift + 1] == \
-                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][
-                    vertical_shift + 3] != 0:
+                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
                     return True
-                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][
-                    4 - vertical_shift] == \
-                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][
-                    2 - vertical_shift] != 0:
+                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][4 - vertical_shift] == \
+                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][2 - vertical_shift] != 0:
                     return True
         return False
 

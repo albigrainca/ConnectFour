@@ -2,7 +2,6 @@ import math
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
-import random as rnd
 from threading import Thread
 from queue import Queue
 
@@ -38,12 +37,15 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     print()
     queue.put(best_move)
 
+
 def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return 1, nodes_explored
     elif depth_explored >= ai_level:
         return 0, nodes_explored
     possible_moves = board.get_possible_moves()
+    if ai_level == 0:
+        return board.eval(max_player)
     value = math.inf
     for move in possible_moves:
         nodes_explored += 1
@@ -57,12 +59,15 @@ def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
         beta = min(beta, value)
     return value, nodes_explored
 
+
 def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return -1, nodes_explored
     elif depth_explored >= ai_level:
         return 0, nodes_explored
     possible_moves = board.get_possible_moves()
+    if ai_level == 0:
+        return board.eval(max_player)
     value = -math.inf
     for move in possible_moves:
         nodes_explored += 1
@@ -76,69 +81,72 @@ def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
         alpha = max(alpha, value)
     return value, nodes_explored
 
+
 class Board:
     grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
 
     def is_thread(self, row, column, player):
-        board_copy = self.copy();
-        board_copy.grid[column][row] = player;
+        board_copy = self.copy()
+        board_copy.grid[column][row] = player
         if board_copy.check_victory():
-            return True;
+            return True
         else:
-            return False;
+            return False
 
     def eval(self, player):
-        score = 0;
-        useless = False;
-        skip_next_player = False;
-        skip_player = False;
-        dispo_counter = 1;
-        for row in range(6):
-            skip_player = skip_next_player;
-            skip_next_player = False;
-            skip_opponent = False;
-            skip_next_opponent = False;
-            if not useless:
-                if (self.grid[column][row] == 0):
-                    if (not skip_player):
-                        if (self.is_thread(row, column, player)):
-                            if (row % 2 == player):
-                                score += (6 - dispo_counter) * 100;
-                            else:
-                                score += (6 - dispo_counter) * 50;
-                            if (row < 5):
-                                skip_next_player = True;
-                                if (self.is_thread(row + 1, column, player)):
-                                    score += 1000;
-                                    useless = True;
-                    if (not skip_opponent):
-                        if (self.is_thread(row, column, ((player + 1) % 2))):
-                            if (row % 2 == (player + 1) % 2):
-                                score -= (6 - dispo_counter) * 100;
-                            else:
-                                score -= (6 - dispo_counter) * 50;
-                            if (row < 5):
-                                skip_next_opponent = True;
-                                if (self.is_thread(row + 1, column, player)):
-                                    score -= 1000;
-                                    useless = True;
-                    dispo_counter += 1;
-                elif self.grid[colmun][row] == player:
-                    if (column == 3):
-                        score += 3
-                    elif (column == 2 or column == 4):
-                        score += 2;
-                    elif (column == 1 or column == 5):
-                        score += 1;
-                else:
-                    if (column == 4):
-                        score -= 3;
-                    elif (column == 3 or column == 5):
-                        score -= 2;
-                    elif (column == 2 or column == 6):
-                        score -= 1;
-        return score;
+        score = 0
+        for column in range(7):
+            useless = False
+            skip_next_player = False
+            skip_player = False
+            skip_next_opponent = False
+            dispo_counter = 1
+            for row in range(6):
+                skip_player = skip_next_player
+                skip_next_player = False
+                skip_opponent = skip_next_opponent
+                skip_next_opponent = False
+                if not useless:
+                    if self.grid[column][row] == 0:
+                        if not skip_player:
+                            if self.is_thread(row, column, player):
+                                if row % 2 == player:
+                                    score += (6 - dispo_counter) * 100
+                                else:
+                                    score += (6 - dispo_counter) * 50
+                                if row < 5:
+                                    skip_next_player = True
+                                    if self.is_thread(row + 1, column, player):
+                                        score += 10000
+                                        useless = True
+                        if not skip_opponent:
+                            if self.is_thread(row, column, ((player + 1) % 2)):
+                                if row % 2 == (player + 1) % 2:
+                                    score -= (6 - dispo_counter) * 100
+                                else:
+                                    score -= (6 - dispo_counter) * 50
+                                if row < 5:
+                                    skip_next_opponent = True
+                                    if self.is_thread(row + 1, column, player):
+                                        score -= 1000
+                                        useless = True
+                        dispo_counter += 1
+                    elif self.grid[column][row] == player:
+                        if column == 3:
+                            score += 3
+                        elif column == 2 or column == 4:
+                            score += 2
+                        elif column == 1 or column == 5:
+                            score += 1
+                    else:
+                        if column == 4:
+                            score -= 3
+                        elif column == 3 or column == 5:
+                            score -= 2
+                        elif column == 2 or column == 6:
+                            score -= 1
+        return score
 
     def copy(self):
         new_board = Board()
@@ -190,10 +198,13 @@ class Board:
         for horizontal_shift in range(4):
             for vertical_shift in range(3):
                 if self.grid[horizontal_shift][vertical_shift] == self.grid[horizontal_shift + 1][vertical_shift + 1] == \
-                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
+                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][
+                    vertical_shift + 3] != 0:
                     return True
-                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][4 - vertical_shift] == \
-                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][2 - vertical_shift] != 0:
+                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][
+                    4 - vertical_shift] == \
+                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][
+                    2 - vertical_shift] != 0:
                     return True
         return False
 

@@ -45,8 +45,8 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
 def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return 1, nodes_explored
-    elif depth_explored >= ai_level:
-        return 0, nodes_explored
+    elif depth_explored >= ai_level or board.get_possible_moves == 0:
+        return board.eval(max_player), nodes_explored
     possible_moves = board.get_possible_moves()
     value = math.inf
     for move in possible_moves:
@@ -64,8 +64,8 @@ def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
 def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
         return -1, nodes_explored
-    elif depth_explored >= ai_level:
-        return 0, nodes_explored
+    elif depth_explored >= ai_level or board.get_possible_moves == 0:
+        return board.eval(max_player), nodes_explored
     possible_moves = board.get_possible_moves()
     value = -math.inf
     for move in possible_moves:

@@ -2,7 +2,6 @@ import math
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
-import random as rnd
 from threading import Thread
 from queue import Queue
 
@@ -13,8 +12,6 @@ player_type = ['human']
 for i in range(42):
     player_type.append('AI: alpha-beta level ' + str(i + 1))
 
-def player_playing(turn):
-    return 2 - (turn % 2)
 
 def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     possible_moves = board.get_possible_moves()
@@ -28,7 +25,7 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, player_playing(turn), update_display=False)
+        update_board.add_disk(move, max_player, update_display=False)
         value, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player, 0)
         if value > best_value:
             best_value = value
@@ -37,22 +34,22 @@ def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     print("NODES EXPLORED : {}".format(nodes_explored))
     print("BEST VALUE : {}".format(best_value))
     print("BEST MOVE : {}".format(best_move))
-    print("score =" + str(board.eval(player_playing(turn))))
-    print("player : " + str(player_playing(turn)))
     print()
     queue.put(best_move)
 
+
 def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
-        return 1, nodes_explored
-    elif depth_explored >= ai_level or board.get_possible_moves == 0:
-        return board.eval(max_player), nodes_explored
+        return math.inf, nodes_explored
+    elif depth_explored >= ai_level:
+        value = board.eval(max_player)
+        return value, nodes_explored
     possible_moves = board.get_possible_moves()
     value = math.inf
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, player_playing(turn), update_display=False)
+        update_board.add_disk(move, max_player % 2 + 1, update_display=False)
         max_val, nodes_explored = max_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
                                             depth_explored + 1)
         value = min(value, max_val)
@@ -61,17 +58,19 @@ def min_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
         beta = min(beta, value)
     return value, nodes_explored
 
+
 def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, depth_explored):
     if board.check_victory():
-        return -1, nodes_explored
-    elif depth_explored >= ai_level or board.get_possible_moves == 0:
-        return board.eval(max_player), nodes_explored
+        return -math.inf, nodes_explored
+    elif depth_explored >= ai_level:
+        value = board.eval(max_player % 2 + 1)
+        return value, nodes_explored
     possible_moves = board.get_possible_moves()
     value = -math.inf
     for move in possible_moves:
         nodes_explored += 1
         update_board = board.copy()
-        update_board.add_disk(move, player_playing(turn), update_display=False)
+        update_board.add_disk(move, max_player, update_display=False)
         min_val, nodes_explored = min_value(update_board, turn + 1, alpha, beta, nodes_explored, ai_level, max_player,
                                             depth_explored + 1)
         value = max(value, min_val)
@@ -80,57 +79,85 @@ def max_value(board, turn, alpha, beta, nodes_explored, ai_level, max_player, de
         alpha = max(alpha, value)
     return value, nodes_explored
 
-def eval_sequence(seq, player):
-    # Count the number of disks of each player in the sequence
-    count = [np.sum(seq == i) for i in range(1, 3)]
 
-    # If the current player has 3 disks in a row, return a high score
-    if count[player - 1] == 3:
-        return 100
-    # If the other player has 3 disks in a row, return a low score
-    elif count[player % 2] == 3:
-        return -100
-    # If the current player has 2 disks in a row and an empty space, return a medium score
-    elif count[player - 1] == 2 and 0 in count:
-        return 10
-    # If the other player has 2 disks in a row and an empty space, return a medium negative score
-    elif count[player % 2] == 2 and 0 in count:
-        return -10
-    # Otherwise, return 0
-    else:
-        return 0
+def evaluate_position(row, column, player):
+    score = 0
+    # Give a bonus for central columns
+    if column == 3:
+        score += 3
+    elif column == 2 or column == 4:
+        score += 2
+    elif column == 1 or column == 5:
+        score += 1
+    # Give a bonus for pieces near the top of the board
+    if row <= 2:
+        score += row + 1
+    # Give a bonus for pieces that form a diagonal
+    if row == column:
+        score += 2
+    if column == 6 - row:
+        score += 2
+    return score
+
 
 class Board:
     grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
 
+    def count_threads(self, player, length):
+        count = 0
+        # Check rows
+        for row in range(6):
+            for col in range(4):
+                if all(self.grid[col + i][row] == player for i in range(length)):
+                    count += 1
+        # Check columns
+        for col in range(7):
+            for row in range(3):
+                if all(self.grid[col][row + i] == player for i in range(length)):
+                    count += 1
+        # Check diagonals
+        for row in range(3):
+            for col in range(4):
+                if all(self.grid[col + i][row + i] == player for i in range(length)):
+                    count += 1
+        for row in range(3):
+            for col in range(3, 7):
+                if all(self.grid[col - i][row + i] == player for i in range(length)):
+                    count += 1
+        return count
+
     def eval(self, player):
         score = 0
-        # Iterate over the rows and columns of the grid
-        for i in range(self.grid.shape[0]):
-            for j in range(self.grid.shape[1]):
-                # Check for horizontal sequences of 3 or 4 disks
-                if j <= self.grid.shape[1] - 3:
-                    seq = self.grid[i, j:j + 3]
-                    score += eval_sequence(seq, player)
-                    if j <= self.grid.shape[1] - 4:
-                        seq = self.grid[i, j:j + 4]
-                        score += eval_sequence(seq, player)
-                # Check for vertical sequences of 3 or 4 disks
-                if i <= self.grid.shape[0] - 3:
-                    seq = self.grid[i:i + 3, j]
-                    score += eval_sequence(seq, player)
-                    if i <= self.grid.shape[0] - 4:
-                        seq = self.grid[i:i + 4, j]
-                        score += eval_sequence(seq, player)
-                # Check for diagonal sequences of 3 or 4 disks
-                if i <= self.grid.shape[0] - 3 and j <= self.grid.shape[1] - 3:
-                    seq = self.grid[i:i + 3, j:j + 3]
-                    score += eval_sequence(seq, player)
-                    if i <= self.grid.shape[0] - 4 and j <= self.grid.shape[1] - 4:
-                        seq = self.grid[i:i + 4, j:j + 4]
-                        score += eval_sequence(seq, player)
-        # Return the score
+        opponent = (player + 1) % 2
+        winning_threads = self.count_threads(player, 4)
+        blocking_threads = self.count_threads(opponent, 4)
+        score += winning_threads * 10000
+        score -= blocking_threads * 8500
+        if winning_threads > 0:
+            return score
+
+        # If no winning thread is found, we check for thread that can be completed in one move
+        winning_threads = self.count_threads(player, 3)
+        blocking_threads = self.count_threads(opponent, 3)
+        score += winning_threads * 1000
+        score -= blocking_threads * 700
+        if winning_threads > 0:
+            return score
+
+        # If no threads that can be completed in one move, check for thread that can be completed in two moves
+        winning_threads = self.count_threads(player, 2)
+        blocking_threads = self.count_threads(opponent, 2)
+        score += winning_threads * 100
+        score -= blocking_threads * 60
+
+        # Evaluate position
+        for row in range(6):
+            for col in range(7):
+                if self.grid[col][row] == player:
+                    score += evaluate_position(row, col, player)
+                elif self.grid[col][row] == opponent:
+                    score -= evaluate_position(row, col, opponent)
         return score
 
     def copy(self):
@@ -183,10 +210,13 @@ class Board:
         for horizontal_shift in range(4):
             for vertical_shift in range(3):
                 if self.grid[horizontal_shift][vertical_shift] == self.grid[horizontal_shift + 1][vertical_shift + 1] == \
-                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
+                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][
+                    vertical_shift + 3] != 0:
                     return True
-                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][4 - vertical_shift] == \
-                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][2 - vertical_shift] != 0:
+                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][
+                    4 - vertical_shift] == \
+                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][
+                    2 - vertical_shift] != 0:
                     return True
         return False
 
